@@ -29,11 +29,11 @@ git clone https://github.com/cosmodesi/desipipe.git
 ```
 To install the code:
 ```
-python setup.py install --user
+pip install --user .
 ```
 Or in development mode (any change to Python code will take place immediately):
 ```
-python setup.py develop --user
+pip install --user --editable .
 ```
 
 ## License

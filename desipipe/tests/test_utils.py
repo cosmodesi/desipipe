@@ -12,7 +12,6 @@ def func(a, b, c=2):
 
 
 def test_uid():
-
     uid = pickle.dumps((func, (1, 2), {'c': 3}))
     hex = hashlib.md5(uid).hexdigest()
     id = uuid.UUID(hex=hex)

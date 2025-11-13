@@ -1,0 +1,24 @@
+[build-system]
+requires = [
+    "setuptools>=61",
+    "wheel",
+    "setuptools_scm>=6.2",
+    "pip>=21.2",
+]
+
+[project]
+name = "desipipe"
+authors = [{name = "cosmodesi"}]
+description = "Python wrapper over Slurm to submit many jobs (at NERSC, but can be extended to other clusters)"
+version = "1.0.0"
+dependencies = ["pyyaml", "mpi4py"]
+readme = "README.md"
+requires-python = ">=3.10"
+urls = {Repository = "'http://github.com/cosmodesi/desipipe"}
+classifiers = ["Programming Language :: Python :: 3"]
+
+[project.scripts]
+desipipe = "desipipe.__main__:main"
+
+[tool.setuptools]
+packages = ["desipipe"]

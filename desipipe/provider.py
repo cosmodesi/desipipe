@@ -10,32 +10,6 @@ from .utils import BaseClass
 from . import utils
 
 
-def get_ttl_hash(dt=1):
-    """Return the same value withing ``dt`` second time period."""
-    return round(time.time() / dt)
-
-
-def time_lru_cache(dt=1):
-    """
-    Wrapper that caches function result for a ``dt`` second time period maximum.
-    Idea taken from https://stackoverflow.com/questions/31771286/python-in-memory-cache-with-time-to-live
-    """
-
-    def make_wrapper(func):
-
-        @functools.lru_cache()
-        def my_func(*args, ttl_hash=None, **kwargs):
-            return func(*args, **kwargs)
-
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            return my_func(*args, ttl_hash=get_ttl_hash(dt=dt), **kwargs)
-
-        return wrapper
-
-    return make_wrapper
-
-
 class RegisteredProvider(type(BaseClass)):
 
     """Metaclass registering :class:`BaseProvider`-derived classes."""
@@ -48,6 +22,26 @@ class RegisteredProvider(type(BaseClass)):
         return cls
 
 
+def time_lru_cache(func):
+    """
+    Wrapper that caches function result for a ``dt`` second time period maximum.
+    Idea taken from https://stackoverflow.com/questions/31771286/python-in-memory-cache-with-time-to-live
+    """
+    def get_ttl_hash(timestep=1):
+        """Return the same value withing ``dt`` second time period."""
+        return round(time.time() / timestep)
+
+    @functools.lru_cache()
+    def my_func(*args, ttl_hash=None, **kwargs):
+        return func(*args, **kwargs)
+
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        return my_func(*args, ttl_hash=get_ttl_hash(timestep=self.timestep), **kwargs)
+
+    return wrapper
+
+
 class BaseProvider(BaseClass, metaclass=RegisteredProvider):
 
     """Base computing resource provider class, that runs commands on the specific computer / cluster."""
@@ -55,7 +49,7 @@ class BaseProvider(BaseClass, metaclass=RegisteredProvider):
     name = 'base'
     _defaults = {'stop_after': None}
 
-    def __init__(self, environ=None, **kwargs):
+    def __init__(self, environ=None, timestep=1.0, **kwargs):
         """
         Initialize provider.
 
@@ -63,6 +57,9 @@ class BaseProvider(BaseClass, metaclass=RegisteredProvider):
         ----------
         environ : BaseEnvironment, str, dict, default=None
             Environment, see :func:`get_environ`.
+
+        timestep : float, default=1.0
+            Time step in seconds between each evaluation of :meth:`jobids`.
 
         **kwargs : dict
             Other attributes, to replace values in :attr:`_defaults`.
@@ -72,6 +69,7 @@ class BaseProvider(BaseClass, metaclass=RegisteredProvider):
 
         self.update(**{'environ': environ, **kwargs})
         self.processes = []
+        self.timestep = float(timestep)
 
     @classmethod
     def jobid(cls):
@@ -103,6 +101,7 @@ class BaseProvider(BaseClass, metaclass=RegisteredProvider):
         """Clear, i.e. delete information (typically job IDs) from current run."""
         pass
 
+    @time_lru_cache
     def jobids(self, state=('PENDING', 'RUNNING'), return_nworkers=False):
         """List of workers, from oldest to newest."""
         return []
@@ -206,9 +205,9 @@ class LocalProvider(BaseProvider):
         """Clear, i.e. delete information (processes) from current run."""
         self.processes = []
 
-    @time_lru_cache()
     def jobids(self, state=('PENDING', 'RUNNING'), return_nworkers=False):
         """List of workers, from oldest to newest."""
+
         allowed_state = ['PENDING', 'RUNNING']
         if utils.is_sequence(state): states = [s.upper() for s in state]
         else: states = [state.upper()]
@@ -227,7 +226,6 @@ class LocalProvider(BaseProvider):
             return [None] * nrunning
         return []
 
-    @time_lru_cache()
     def nworkers(self, of='workers', state=('PENDING', 'RUNNING')):
         """Number of running workers."""
         return len(self.jobids(state=state))
@@ -360,7 +358,7 @@ class SlurmProvider(BaseProvider):
         """Clear, i.e. delete information (processes) from current run."""
         self.processes = []
 
-    @time_lru_cache(dt=2.)
+    @time_lru_cache
     def jobids(self, state=('PENDING', 'RUNNING'), return_nworkers=False):
         """List of workers, from oldest to newest."""
         allowed_state = ['PENDING', 'RUNNING']
@@ -393,7 +391,6 @@ class SlurmProvider(BaseProvider):
             return [(jobid, workers) for jobid, nodes, workers in self.processes if jobid in jobids]
         return jobids
 
-    @time_lru_cache(dt=2.)
     def nworkers(self, of='workers', state=('PENDING', 'RUNNING')):
         """Number of (pending or running) workers."""
         jobids = self.jobids(state=state)

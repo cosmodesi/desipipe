@@ -98,7 +98,7 @@ def serialize_function(func, remove_decorator=False):
         default = param.default
         if default is not inspect._empty:
             try:
-                param = param.replace(default="#{}#".format(param.name))
+                param = param.replace(default='#{}#'.format(param.name))
                 dlocals[param.name] = default
             except ValueError:
                 pass
@@ -106,14 +106,14 @@ def serialize_function(func, remove_decorator=False):
     sig = sig.replace(parameters=parameters)
     sig = str(sig)
     for param in dlocals:
-        sig = sig.replace('"#{}#"'.format(param), param)
+        sig = sig.replace("'#{}#'".format(param), param)
     code = "def {}{}:{}".format(name, sig, code)
     return name, code, vartypes, dlocals
 
 
 def deserialize_function(name, code, dlocals):
     scope = {}
-    exec(code, dict(dlocals), scope)  # exec fills dlocals, so let"s make a copy
+    exec(code, dict(dlocals), scope)  # exec fills dlocals, so let's make a copy
     scope[name].__desipipecode__ = code
     return scope[name]
 
@@ -1792,7 +1792,9 @@ def spawn(queue, timeout=3600 * 24, timestep=3., mode="", max_workers=None, spaw
         Time out after this delay (in seconds).
 
     timestep : float, default=3.
-        Period (in seconds) at which the queue is queried for new tasks.
+        Period (in seconds) at which the queue is queried for new tasks,
+        and running / pending jobs are checked.
+        Increase in case the provider (e.g. Slurm) cannot handle too frequent calls to the state of the queue.
 
     mode : str, default=""
         Processing mode.
@@ -2126,7 +2128,7 @@ def action_from_args(action="work", args=None):
     if action == "spawn":
 
         parser.add_argument("--timeout", type=float, required=False, default=3600 * 24, help="Stop after this time")
-        parser.add_argument("--timestep", type=float, required=False, default=3., help="Period (in seconds) at which the queue is queried for new tasks")
+        parser.add_argument("--timestep", type=float, required=False, default=3., help="Period (in seconds) at which the queue is queried for new tasks. Increase in case the provider (e.g. Slurm) cannot handle too frequent calls to the state of the queue.")
         parser.add_argument("--mode", type=str, required=False, default="", help="Processing mode; 'stop_at_error' to stop as soon as a task is failed; 'retry_at_timeout' to retry when time out; 'no_stream' to not stream stderr/stdout during the tasks (helps when many jobs in parallel. 'no_out' to not stream stderr/stdout and not save stdout.")
         parser.add_argument("--max-workers", type=int, required=False, default=None, help="Maximum number of workers, overrides scheduler max_workers")
         parser.add_argument("--spawn", action="store_true", help="Spawn a new manager process and exit this one")

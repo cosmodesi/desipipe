@@ -245,7 +245,7 @@ if __name__ == '__main__':
     #test_serialization()
     #test_app()
     test_queue(spawn=True, run=False)
-    test_cmdline()
+    #test_cmdline()
     #test_file(spawn=True)
     #test_mpi()
     test_slurm()

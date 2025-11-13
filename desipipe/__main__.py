@@ -5,7 +5,6 @@ from .task_manager import action_from_args
 
 
 def main():
-
     help_msg = 'Add one of the following commands and its arguments (`<command> -h` for help):\n'
     for action, description in action_from_args.actions.items():
         help_msg += '{}: {}\n'.format(action, description)
