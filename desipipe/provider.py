@@ -37,7 +37,7 @@ def time_lru_cache(func):
 
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
-        return my_func(*args, ttl_hash=get_ttl_hash(timestep=self.timestep), **kwargs)
+        return my_func(self, *args, ttl_hash=get_ttl_hash(timestep=self.timestep), **kwargs)
 
     return wrapper
 
@@ -47,9 +47,9 @@ class BaseProvider(BaseClass, metaclass=RegisteredProvider):
     """Base computing resource provider class, that runs commands on the specific computer / cluster."""
 
     name = 'base'
-    _defaults = {'stop_after': None}
+    _defaults = {'stop_after': None, 'timestep': 1.0}
 
-    def __init__(self, environ=None, timestep=1.0, **kwargs):
+    def __init__(self, environ=None, **kwargs):
         """
         Initialize provider.
 
@@ -57,9 +57,6 @@ class BaseProvider(BaseClass, metaclass=RegisteredProvider):
         ----------
         environ : BaseEnvironment, str, dict, default=None
             Environment, see :func:`get_environ`.
-
-        timestep : float, default=1.0
-            Time step in seconds between each evaluation of :meth:`jobids`.
 
         **kwargs : dict
             Other attributes, to replace values in :attr:`_defaults`.
@@ -69,7 +66,6 @@ class BaseProvider(BaseClass, metaclass=RegisteredProvider):
 
         self.update(**{'environ': environ, **kwargs})
         self.processes = []
-        self.timestep = float(timestep)
 
     @classmethod
     def jobid(cls):
@@ -205,6 +201,7 @@ class LocalProvider(BaseProvider):
         """Clear, i.e. delete information (processes) from current run."""
         self.processes = []
 
+    @time_lru_cache
     def jobids(self, state=('PENDING', 'RUNNING'), return_nworkers=False):
         """List of workers, from oldest to newest."""
 

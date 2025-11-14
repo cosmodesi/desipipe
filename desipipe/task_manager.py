@@ -1778,7 +1778,7 @@ def work(queue, mid=None, tid=None, name=None, provider=None, mode="", mpicomm=N
             break
 
 
-def spawn(queue, timeout=3600 * 24, timestep=3., mode="", max_workers=None, spawn=False):
+def spawn(queue, timeout=3600 * 24, timestep=10., mode="", max_workers=None, spawn=False):
     """
     Distribute tasks to workers.
     If all queues are paused, the function terminates.
@@ -1791,9 +1791,9 @@ def spawn(queue, timeout=3600 * 24, timestep=3., mode="", max_workers=None, spaw
     timeout : float, default=3600 * 24
         Time out after this delay (in seconds).
 
-    timestep : float, default=3.
+    timestep : float, default=10.
         Period (in seconds) at which the queue is queried for new tasks,
-        and running / pending jobs are checked.
+        and running / pending jobs are checked (with a refreshment time step of timestep).
         Increase in case the provider (e.g. Slurm) cannot handle too frequent calls to the state of the queue.
 
     mode : str, default=""
@@ -1822,7 +1822,8 @@ def spawn(queue, timeout=3600 * 24, timestep=3., mode="", max_workers=None, spaw
         if all(queue.paused for queue in queues):
             break
         if stop:
-            if nsteps > stop_after_nsteps:  # after stop_after_nsteps with stop, stop
+            # stop spawn after stop_after_nsteps with stop (no pending or running task)
+            if nsteps > stop_after_nsteps:
                 break
         else:
             nsteps = 0
@@ -1849,6 +1850,7 @@ def spawn(queue, timeout=3600 * 24, timestep=3., mode="", max_workers=None, spaw
                     if time.time() - tt0 > manager.provider.timeout:
                         queue.set_task_state(tid, TaskState.UNKNOWN)
                 ntasks = queue.counts(mid=manager.id, state=TaskState.PENDING)
+                manager.provider.update(timestep=timestep)  # heuristics
                 # print(ntasks, queue.counts(mid=manager.id, state=TaskState.PENDING), queue.counts(mid=manager.id, state=TaskState.WAITING), stop, flush=True)
                 if ntasks:
                     manager.spawn('desipipe work --queue {} --mid {} --mode {}'.format(queue.filename, manager.id, mode), ntasks=ntasks)
@@ -2128,7 +2130,7 @@ def action_from_args(action="work", args=None):
     if action == "spawn":
 
         parser.add_argument("--timeout", type=float, required=False, default=3600 * 24, help="Stop after this time")
-        parser.add_argument("--timestep", type=float, required=False, default=3., help="Period (in seconds) at which the queue is queried for new tasks. Increase in case the provider (e.g. Slurm) cannot handle too frequent calls to the state of the queue.")
+        parser.add_argument("--timestep", type=float, required=False, default=10., help="Period (in seconds) at which the queue is queried for new tasks. Increase in case the provider (e.g. Slurm) cannot handle too frequent calls to the state of the queue.")
         parser.add_argument("--mode", type=str, required=False, default="", help="Processing mode; 'stop_at_error' to stop as soon as a task is failed; 'retry_at_timeout' to retry when time out; 'no_stream' to not stream stderr/stdout during the tasks (helps when many jobs in parallel. 'no_out' to not stream stderr/stdout and not save stdout.")
         parser.add_argument("--max-workers", type=int, required=False, default=None, help="Maximum number of workers, overrides scheduler max_workers")
         parser.add_argument("--spawn", action="store_true", help="Spawn a new manager process and exit this one")

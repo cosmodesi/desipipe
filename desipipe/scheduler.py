@@ -103,7 +103,7 @@ class SimpleScheduler(BaseScheduler):
         Maximum number of workers.
     """
     name = 'simple'
-    _defaults = dict(max_workers=1, timestep=2, timeout=120)
+    _defaults = dict(max_workers=1)
 
     def __call__(self, cmd, ntasks=None):
         if ntasks is None: ntasks = self.max_workers
@@ -114,9 +114,10 @@ class SimpleScheduler(BaseScheduler):
             return 0
         # Too many jobs can be launched because the list of PENDING jobs (provided by provider.nworkers(state='PENDING')) may take some time to refresh fully
         if nremaining < 0:
+            jobids = self.provider.jobids(state='PENDING', return_nworkers=True)
             nkill = 0
             tokill = []
-            for jobid, nworkers in list(self.provider.jobids(state='PENDING', return_nworkers=True))[::-1]:  # start from most recent
+            for jobid, nworkers in list(jobids)[::-1]:  # start from most recent
                 if nkill + nworkers <= abs(nremaining) and jobid is not None:
                     tokill.append(jobid)
                     nkill += nworkers
@@ -125,7 +126,7 @@ class SimpleScheduler(BaseScheduler):
 
         max_remaining_workers = self.max_workers - self.provider.nworkers()
         spawn_workers = 0
-        jobids = self.provider.jobids(state=('PENDING', 'RUNNING'))
+        #jobids = self.provider.jobids(state=('PENDING', 'RUNNING'))
         while max_remaining_workers >= spawn_workers:
             ndiff = min(nremaining, max_remaining_workers) - spawn_workers
             if ndiff <= 0: break
@@ -137,11 +138,15 @@ class SimpleScheduler(BaseScheduler):
             self.provider(cmd, workers=best_workers)
             spawn_workers += best_workers
         # Let's wait a bit for the list of PENDING jobs to be (at least partially) refreshed
-        if spawn_workers:
-            t0 = time.time()
-            while self.provider.jobids(state=('PENDING', 'RUNNING')) == jobids:
-                #print('waiting', jobids)
-                if time.time() - t0 > self.timeout:
-                    raise TimeoutError('provider {} list of PENDING/RUNNING tasks has not been updated in {} seconds. Fix this and respawn the queue'.format(self.provider, self.timeout))
-                time.sleep(self.timestep)
+        timestep = self.provider.timestep
+        if spawn_workers: time.sleep(timestep)
+        # Below is a bad idea as jobs can be accepted and ran very quickly, before jobids is refreshed
+        #if spawn_workers:
+        #    counter = 0
+        #    while self.provider.jobids(state=('PENDING', 'RUNNING')) == jobids:
+        #        #print('waiting', jobids)
+        #        if counter > self.timeout_per_timestep:
+        #            raise TimeoutError('provider {} list of PENDING/RUNNING tasks has not been updated in {} seconds. Fix this and respawn the queue'.format(self.provider, self.timeout_per_timestep * timestep))
+        #        time.sleep(timestep)
+        #        counter += 1
         return spawn_workers
