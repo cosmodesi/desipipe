@@ -89,7 +89,7 @@ Let's specify this! We create a queue, that will contain all our tasks (here one
   avg = average(fractions)
   ech = echo(avg)
 
-The script above stacks all tasks in the queue. ``fraction`` tasks will be 'PENDING' (waiting to be run),
+Running the script above stacks all tasks in the queue. ``fraction`` tasks will be 'PENDING' (waiting to be run),
 while ``average`` tasks will be 'WAITING' for the former to complete. ``echo`` also depends on ``average``.
 Running the script above will write a :class:`desipipe.Queue` on disk, with name 'test', in the directory ``_tests``
 (by default, it is ``${HOME}/.desipipe/queues/${USERNAME}/``).
@@ -139,6 +139,20 @@ There is already a provider and environment implemented for NERSC. See the examp
   @tm_fit.python_app
   def profile(...):
     ...
+
+
+Run this script, and then:
+
+.. code-block:: bash
+
+  desipipe spawn -q my_queue --spawn
+
+
+Warning
+-------
+
+To avoid too frequent requests to 'sacct' (showing the list of submitted jobs), specify ``--timestep 60``;
+this will call 'sacct' every 60 seconds.
 
 
 Cheat list

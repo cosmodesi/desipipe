@@ -77,7 +77,7 @@ class BaseEnvironment(BaseDict, metaclass=RegisteredEnvironment):
         for name, value in self._defaults.items():
             self.setdefault(name, copy.copy(value))
         self.update((data or {}), command=command)
-    
+
     def update(self, *args, **kwargs):
         """Update."""
         if 'command' in kwargs:
@@ -94,7 +94,7 @@ class BaseEnvironment(BaseDict, metaclass=RegisteredEnvironment):
         if all:
             new.update(bash_env(self.command))
         return dict(new)
-    
+
     def to_script(self, sep='\n', all=True):
         """
         Export environment as a bash script, including both the command :attr:`command`
