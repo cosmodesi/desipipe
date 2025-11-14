@@ -23,16 +23,32 @@ def test_serialization():
 
     from desipipe.task_manager import serialize_function, deserialize_function
 
-    def func(a, b, *args, c=4, **kwargs):
-        return a * b * c
+    def decorator(func): return func
 
-    name, code, vartypes, dlocals = serialize_function(func)
-    func2 = deserialize_function(name, code, dlocals)
-    assert func2(1, 2, c=5) == 10.
-    name, code, vartypes, dlocals = serialize_function(func2)
-    print(name, code, vartypes, dlocals)
-    func2 = deserialize_function(name, code, dlocals)
-    assert func2(1, 2) == 8.
+    @decorator
+    def func1(a: int, b: float, *args, c: int=4, **kwargs):
+        if True:
+            a = a**2
+            if True:
+                d = a
+            return a * b * c
+        else:
+            return 1.
+        if False:
+            return 10.
+
+    @decorator
+    def func2(a: int, b: float, *args, c: int=4, **kwargs): return a**2 * b * c
+
+    for func in [func1, func2]:
+        name, code, vartypes, dlocals = serialize_function(func)
+        print(code)
+        func2 = deserialize_function(name, code, dlocals)
+        assert func2(1, 2, c=5) == 10
+        name, code, vartypes, dlocals = serialize_function(func2)
+        print(name, code, vartypes, dlocals)
+        func2 = deserialize_function(name, code, dlocals)
+        assert func2(2, 2) == 32
 
 
 def test_queue(spawn=True, run=False):
@@ -51,7 +67,7 @@ def test_queue(spawn=True, run=False):
 
     from test_def import common1
 
-    def common2(size=10000, co=common1):
+    def common2(size: int=10000, co=common1):
         return co(size=size)
 
     @tm.python_app
@@ -242,7 +258,7 @@ def test_slurm():
 
 if __name__ == '__main__':
 
-    #test_serialization()
+    test_serialization()
     #test_app()
     test_queue(spawn=True, run=False)
     #test_cmdline()

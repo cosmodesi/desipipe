@@ -18,6 +18,7 @@ import glob
 import textwrap
 import copyreg
 import shutil
+import ast
 
 import sqlite3
 
@@ -68,7 +69,7 @@ def reduce_app(self):
     return (self.__class__.__new__, (self.__class__,), state)
 
 
-def serialize_function(func, remove_decorator=False):
+def serialize_function(func):
     if not inspect.isfunction(func):
         raise SerializationError("input object is not a function")
     name = func.__name__
@@ -80,14 +81,21 @@ def serialize_function(func, remove_decorator=False):
             code = inspect.getsource(func)
         except Exception as exc:
             raise SerializationError("cannot find source code for input object") from exc
-    code = textwrap.dedent(code).split("\n")
-    if remove_decorator:
-        if code[0].startswith("@"):
-            code = code[1:]
-    code = "\n".join(code)
-    if not code.startswith("def "):
-        raise SerializationError("input object code does not start with def: {}".format(code))
-    _, code = code.split(":", maxsplit=1)
+    code = textwrap.dedent(code)
+    module = ast.parse(code)
+    node = next(node for node in module.body if isinstance(node, ast.FunctionDef))
+
+    # --- Extract the exact body using get_source_segment ---
+    body_segments = []
+    for stmt in node.body:
+        seg = ast.get_source_segment(code, stmt, padded=True)
+        body_segments.append(seg)
+
+    body = "\n".join(body_segments)
+    # --- Normalize indentation --- (useful if inline function: ...)
+    body = textwrap.dedent(body).rstrip()
+    body = textwrap.indent(body, " " * 4)
+
     sig = inspect.signature(func)
     parameters, vartypes, dlocals = [], {}, {}
     for param in sig.parameters.values():
@@ -107,7 +115,7 @@ def serialize_function(func, remove_decorator=False):
     sig = str(sig)
     for param in dlocals:
         sig = sig.replace("'#{}#'".format(param), param)
-    code = "def {}{}:{}".format(name, sig, code)
+    code = "def {}{}:\n{}".format(name, sig, body)
     return name, code, vartypes, dlocals
 
 
@@ -1259,7 +1267,7 @@ class BaseApp(BaseClass):
         """Update app with input attributes."""
         if "func" in kwargs:
             self.func = kwargs.pop("func")
-            self.name, self.code, self.vartypes, dlocals = serialize_function(self.func, remove_decorator=True)
+            self.name, self.code, self.vartypes, dlocals = serialize_function(self.func)
             self.dlocals = dict.fromkeys(list(dlocals.keys()))
             self.filename = None
             try:
