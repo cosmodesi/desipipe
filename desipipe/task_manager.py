@@ -426,7 +426,7 @@ class Task(BaseClass):
         except AttributeError:  # may have been deleted by callback in work()
             pass
         try:
-            TaskPickler.dumps(self.result)  # to test pickling; the rest should be safe (producted by desipipe)
+            TaskPickler.dumps(self.result)  # to test pickling; the rest should be safe (produced by desipipe)
         except Exception as exc:
             self.errno = getattr(exc, "errno", None) or self.errno
             self.err = traceback.format_exc()
@@ -1410,6 +1410,18 @@ _stream_out_err = True
 _sout, _serr = MyStream(sys.stdout), MyStream(sys.stderr)
 
 
+@contextlib.contextmanager
+def chdir(path):
+    old = os.getcwd()
+    os.chdir(path)
+    sys.path.insert(0, path)
+    try:
+        yield
+    finally:
+        sys.path.pop(0)
+        os.chdir(old)
+
+
 class PythonApp(BaseApp):
     """
     Python application, e.g.:
@@ -1424,8 +1436,8 @@ class PythonApp(BaseApp):
     def run(self, **kwargs):
         """Run app with input ``args`` and ``kwargs``."""
         errno, result, err, out, versions = 0, None, "", "", {}
-        if self.dirname not in sys.path:
-            sys.path.insert(0, self.dirname)
+        #if self.dirname not in sys.path:
+        #    sys.path.insert(0, self.dirname)
 
         def callback():
             callback = getattr(self, "callback", None)
@@ -1435,7 +1447,7 @@ class PythonApp(BaseApp):
         _sout.clear(), _serr.clear()
         _sout.callback = callback
         # We shall use previous streams, as they may have been imported already by e.g. the logger
-        with contextlib.redirect_stdout(_sout), contextlib.redirect_stderr(_serr):
+        with contextlib.redirect_stdout(_sout), contextlib.redirect_stderr(_serr), chdir(self.dirname):
             try:
                 result = self._run(**kwargs)
             except Exception as exc:

@@ -18,6 +18,14 @@ def test_app():
     app = PythonApp(func)
     print(app.run(a=1, b=1))
 
+    import test_utils
+
+    def func(a, b, mod=test_utils):
+        return test_utils.func(a, b)
+
+    app = PythonApp(func)
+    print(app.run(a=1, b=1))
+
 
 def test_serialization():
 
@@ -86,6 +94,8 @@ def test_queue(spawn=True, run=False):
     @tm2.python_app
     def average(fractions):
         import numpy as np
+        import test_def
+        test_def.common1(size=2)
         return np.average(fractions) * 4.
 
     @tm2.python_app(name='average')
@@ -258,8 +268,8 @@ def test_slurm():
 
 if __name__ == '__main__':
 
+    test_app()
     test_serialization()
-    #test_app()
     test_queue(spawn=True, run=False)
     #test_cmdline()
     #test_file(spawn=True)
