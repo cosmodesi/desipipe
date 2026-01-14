@@ -81,6 +81,7 @@ def serialize_function(func):
             code = inspect.getsource(func)
         except Exception as exc:
             raise SerializationError("cannot find source code for input object") from exc
+
     code = textwrap.dedent(code)
     module = ast.parse(code)
     node = next(node for node in module.body if isinstance(node, ast.FunctionDef))
@@ -88,7 +89,9 @@ def serialize_function(func):
     # --- Extract the exact body using get_source_segment ---
     body_segments = []
     for stmt in node.body:
-        seg = ast.get_source_segment(code, stmt, padded=True)
+        #seg = ast.get_source_segment(code, stmt, padded=True)
+        seg = ast.get_source_segment(code, stmt, padded=False)  # as passed only adds to the first line
+        seg = " " * stmt.col_offset + seg
         body_segments.append(seg)
 
     body = "\n".join(body_segments)
@@ -1405,6 +1408,9 @@ class MyStream(object):
     def __del__(self):
         pass
         #self._log.close()
+
+    def close(self):
+        self._stream.close()
 
 _stream_out_err = True
 _sout, _serr = MyStream(sys.stdout), MyStream(sys.stderr)

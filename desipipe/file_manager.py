@@ -224,7 +224,7 @@ class JointMetaClass(type(os.PathLike), type(BaseClass)): pass
 
 
 def _find_basedir(path):
-    index = re.match("\{[^{}]*\}", path)
+    index = re.match(r"\{[^{}]*\}", path)
     if index is not None: index = index.start(0)
     else: index = None
     olddir = path[:index]
