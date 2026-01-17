@@ -436,7 +436,7 @@ class NERSCProvider(SlurmProvider):
         super(NERSCProvider, self).__init__(*args, **kwargs)
         self.max_mpiprocs_per_node = 128
         self.nodes_per_worker = max(self.nodes_per_worker, self.mpiprocs_per_worker * 1. / self.max_mpiprocs_per_node)
-        if self.constraint == 'gpu':
+        if 'gpu' in self.constraint:
             if not self.account.endswith('_g'): self.account += '_g'
             if 'gpus-per-node' not in self.kwargs: self.kwargs['gpus-per-node'] = 4
 

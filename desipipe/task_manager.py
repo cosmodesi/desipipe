@@ -1412,6 +1412,7 @@ class MyStream(object):
     def close(self):
         self._stream.close()
 
+
 _stream_out_err = True
 _sout, _serr = MyStream(sys.stdout), MyStream(sys.stderr)
 
