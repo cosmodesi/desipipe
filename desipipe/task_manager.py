@@ -573,6 +573,7 @@ class Queue(BaseClass):
         if base_dir is None:
             base_dir = Config().queue_dir
 
+        name = str(name)
         if re.match("^[a-zA-Z0-9_/.-]+$", name) is None:
             raise ValueError("Input queue name {} must be alphanumeric plus underscores and hyphens".format(name))
 
