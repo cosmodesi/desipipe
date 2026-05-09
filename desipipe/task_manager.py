@@ -2159,7 +2159,7 @@ def action_from_args(action="work", args=None):
 
         parser.add_argument("--timeout", type=float, required=False, default=3600 * 24, help="Stop after this time")
         parser.add_argument("--timestep", type=float, required=False, default=10., help="Period (in seconds) at which the queue is queried for new tasks. Increase in case the provider (e.g. Slurm) cannot handle too frequent calls to the state of the queue.")
-        parser.add_argument("--mode", type=str, required=False, default="", help="Processing mode; 'stop_at_error' to stop as soon as a task is failed; 'retry_at_timeout' to retry when time out; 'no_stream' to not stream stderr/stdout during the tasks (helps when many jobs in parallel. 'no_out' to not stream stderr/stdout and not save stdout.")
+        parser.add_argument("--mode", type=str, required=False, default="", help="Processing mode; 'stop_at_error' to stop as soon as a task is failed; 'retry_at_timeout' to retry when time out; 'no_stream' to not stream stderr/stdout during the tasks (helps when many jobs in parallel). 'no_out' to not stream stderr/stdout and not save stdout.")
         parser.add_argument("--max-workers", type=int, required=False, default=None, help="Maximum number of workers, overrides scheduler max_workers")
         parser.add_argument("--spawn", action="store_true", help="Spawn a new manager process and exit this one")
         args = parser.parse_args(args=args)

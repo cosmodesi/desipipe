@@ -295,6 +295,9 @@ class SlurmProvider(BaseProvider):
 
     mpiexec : str, default='srun -N {nodes:d} -n {mpiprocs:d} --cpu-bind=cores {cmd}'
         Template to run a command with MPI.
+
+    kwargs : dict
+        Other slurm options, e.g. {'reservation': ...}.
     """
     name = 'slurm'
     _defaults = {**BaseProvider._defaults, 'sqs': None, 'qos': 'regular', 'time': '01:00:00', 'nodes_per_worker': 1., 'mpiprocs_per_worker': 1, 'output': '/dev/null', 'error': '/dev/null', 'mpiexec': 'srun --unbuffered -N {nodes:d} -n {mpiprocs:d} {cmd}', 'signal': 'SIGTERM@30', 'killed_at_timeout': None, 'kwargs': {}}
