@@ -47,7 +47,7 @@ class BaseProvider(BaseClass, metaclass=RegisteredProvider):
     """Base computing resource provider class, that runs commands on the specific computer / cluster."""
 
     name = 'base'
-    _defaults = {'stop_after': None, 'timestep': 1.0}
+    _defaults = {'live_jobids': True, 'stop_after': None, 'timestep': 1.0}
 
     def __init__(self, environ=None, **kwargs):
         """
@@ -115,7 +115,7 @@ class BaseProvider(BaseClass, metaclass=RegisteredProvider):
         return 0
 
     def __call__(self, cmd, workers=1):
-        """Submit input command ``cmd`` on ``workers`` workers."""
+        """Submit input command ``cmd`` on ``workers`` workers and append (jobid, nworkers) to :attr:`processes`."""
         raise NotImplementedError
 
     @property
@@ -204,10 +204,10 @@ class LocalProvider(BaseProvider):
     @time_lru_cache
     def jobids(self, state=('PENDING', 'RUNNING'), return_nworkers=False):
         """List of workers, from oldest to newest."""
-
         allowed_state = ['PENDING', 'RUNNING']
         if utils.is_sequence(state): states = [s.upper() for s in state]
         else: states = [state.upper()]
+        if not self.live_jobids: states = ['ALL']
         for state in states:
             if state == 'ALL':
                 if return_nworkers:
@@ -364,7 +364,7 @@ class SlurmProvider(BaseProvider):
         allowed_state = ['PENDING', 'RUNNING']
         if utils.is_sequence(state): states = [s.upper() for s in state]
         else: states = [state.upper()]
-
+        if not self.live_jobids: states = ['ALL']
         for state in states:
             if state == 'ALL':
                 if return_nworkers:
