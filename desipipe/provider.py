@@ -147,6 +147,7 @@ def get_provider(provider=None, **kwargs):
     if isinstance(provider, BaseProvider):
         return provider
     if isinstance(provider, dict):
+        provider = dict(provider)  # copy
         provider, kwargs = provider.pop('provider', None), {**provider, **kwargs}
     if provider is None:
         from .config import Config
