@@ -863,18 +863,22 @@ class Queue(BaseClass):
         """Resume queue, i.e. set state to "ACTIVE"."""
         self.state = QueueState.ACTIVE
 
+    def _set_task_state_unlocked(self, tid, state, jobid=None, t0=None):
+        """Set task state, assuming the caller owns the database lock."""
+        query = "UPDATE tasks SET state=? WHERE tid=?"
+        self._query([query, (state, tid)])
+        if jobid is not None:
+            query = "UPDATE tasks SET jobid=? WHERE tid=?"
+            self._query([query, (jobid, tid)])
+        if t0 is not None:
+            query = "UPDATE tasks SET t0=? WHERE tid=?"
+            self._query([query, (float(t0), tid)])
+
     def set_task_state(self, tid, state, jobid=None, t0=None):
         """Set the state of task with input ID ``tid`` to ``state``."""
         try:
             self._get_lock()
-            query = "UPDATE tasks SET state=? WHERE tid=?"
-            self._query([query, (state, tid)])
-            if jobid is not None:
-                query = "UPDATE tasks SET jobid=? WHERE tid=?"
-                self._query([query, (jobid, tid)])
-            if t0 is not None:
-                query = "UPDATE tasks SET t0=? WHERE tid=?"
-                self._query([query, (float(t0), tid)])
+            self._set_task_state_unlocked(tid, state, jobid=jobid, t0=t0)
             self.db.commit()
 
             if state in (TaskState.SUCCEEDED, TaskState.FAILED):
@@ -1086,16 +1090,19 @@ class Queue(BaseClass):
         if self.state == QueueState.PAUSED:
             return None
 
-        if self._get_lock():
-            task = self.tasks(state=state, one=True, **kwargs)
-        else:
+        if not self._get_lock():
             self.log_warning('There may be tasks left in queue but I couldn"t get lock to see')
             return None
-        self._release_lock()
-        if task is None:
-            return None
-        jobid = task.app.task_manager.provider.jobid()
-        task.update(state=TaskState.RUNNING, jobid=jobid, t0=time.time())
+
+        try:
+            task = self.tasks(state=state, one=True, **kwargs)
+            if task is not None:
+                jobid = task.app.task_manager.provider.jobid()
+                t0 = time.time()
+                task.update(state=TaskState.RUNNING, jobid=jobid, t0=t0)
+                self._set_task_state_unlocked(task.id, task.state, jobid=task.jobid, t0=task.t0)
+        finally:
+            self._release_lock()
         return task
 
     def managers(self, mid=None, property=None):
@@ -1762,8 +1769,12 @@ def work(queue, mid=None, tid=None, name=None, provider=None, mode="", mpicomm=N
         stask = task = None
         # print(queue.summary(), queue.counts(state="PENDING"))
         if mpicomm is None or mpicomm.rank == 0:
-            task = queue.pop(mid=mid, tid=tid, name=name, jobid=jobid)
-            # Not in pop, because we want the task to be set in running state only when exit_killed can access it
+            # Ensure the signal handler can access any task claimed by pop().
+            previous_mask = signal.pthread_sigmask(signal.SIG_BLOCK, (signal.SIGINT, signal.SIGTERM))
+            try:
+                task = queue.pop(mid=mid, tid=tid, name=name, jobid=jobid)
+            finally:
+                signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
             if task is not None:  # can be None if no task to pop
                 tm = task.app.task_manager
                 _stream_out_err = tm.provider.name != "local"
@@ -1774,10 +1785,8 @@ def work(queue, mid=None, tid=None, name=None, provider=None, mode="", mpicomm=N
                 ntasks[tm.id] = ntasks.get(tm.id, 0) + 1
                 stop_after = getattr(tm.provider, "stop_after", None)
                 if stop_after is not None and ntasks[tm.id] > stop_after:
+                    queue.set_task_state(task.id, TaskState.PENDING)
                     task = None
-                else:
-                    try: queue.set_task_state(task.id, TaskState.RUNNING, jobid=task.jobid, t0=task.t0)
-                    except: pass
             stask = TaskPickler.dumps(task, reduce_app=None)
         if mpicomm is not None:
             killed_at_timeout, _stream_out_err = mpicomm.bcast((killed_at_timeout, _stream_out_err), root=0)

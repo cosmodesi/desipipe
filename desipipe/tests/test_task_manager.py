@@ -2,6 +2,7 @@ import os
 import time
 
 from desipipe import Queue, Environment, TaskManager, FileManager
+from desipipe.task_manager import TaskState
 
 
 base_dir = './_tests/'
@@ -57,6 +58,24 @@ def test_serialization():
         print(name, code, vartypes, dlocals)
         func2 = deserialize_function(name, code, dlocals)
         assert func2(2, 2) == 32
+
+
+def test_pop_claims_task(tmp_path):
+
+    queue = Queue('atomic-pop', base_dir=tmp_path)
+    tm = TaskManager(queue, environ=dict(), provider=dict(provider='local'))
+
+    @tm.python_app
+    def noop():
+        return None
+
+    future = noop()
+    task = queue.pop()
+    assert task.id == future.id
+    assert queue.tasks(tid=task.id, property='state') == TaskState.RUNNING
+
+    contender = Queue('atomic-pop', base_dir=tmp_path, create=False)
+    assert contender.pop() is None
 
 
 def test_queue(spawn=True, run=False):
